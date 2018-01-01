@@ -11,6 +11,9 @@ import SpriteKit
 class GameScene: SKScene {
     
     let player = SKSpriteNode(imageNamed: "mouse-0")
+    let purgedLabel = SKLabelNode(fontNamed: "Chalkduster")
+    var catsPurgedCounter: Int = 0
+    var canFireCheese = true
     
     override func didMove(to view: SKView) {
         
@@ -24,6 +27,13 @@ class GameScene: SKScene {
         player.physicsBody?.categoryBitMask = PhysicsCategory.Player
         player.physicsBody?.contactTestBitMask = PhysicsCategory.Monster
         player.physicsBody?.collisionBitMask = PhysicsCategory.None
+        catsPurgedCounter = 0
+        
+        purgedLabel.position = CGPoint(x: size.width / 2, y: 100)
+        purgedLabel.fontSize = 20
+        purgedLabel.fontColor = .black
+        purgedLabel.text = "Cats Purged: \(catsPurgedCounter)"
+        addChild(purgedLabel)
         
         var textures:[SKTexture] = []
         for x in 0...1 {
@@ -111,7 +121,7 @@ class GameScene: SKScene {
         }
         let touchLocation = touch.location(in: self)
         
-        let projectile = SKSpriteNode(imageNamed: "projectile")
+        let projectile = SKSpriteNode(imageNamed: "cheese-0")
         projectile.position = player.position
         
         projectile.physicsBody = SKPhysicsBody(circleOfRadius: projectile.size.width/2)
@@ -124,8 +134,22 @@ class GameScene: SKScene {
         let offset = touchLocation - projectile.position
         
         guard offset.x > 0 else { return }
+        guard canFireCheese == true else { return }
+        
+        var textures:[SKTexture] = []
+        for x in 0...19 {
+            let imageName = "cheese-\(x)"
+            let texture = SKTexture(imageNamed: imageName)
+            textures.append(texture)
+        }
+        
+        let animation = SKAction.animate(with: textures, timePerFrame: 0.06)
+        let repeatAnimation = SKAction.repeatForever(animation)
+        
+        projectile.run(repeatAnimation)
         
         addChild(projectile)
+        canFireCheese = false
         
         let direction = offset.normalized()
         let shootAmount = direction * 1000
@@ -137,16 +161,21 @@ class GameScene: SKScene {
         let actionMoveDone = SKAction.removeFromParent()
         projectile.run(SKAction.sequence([actionMove, actionMoveDone]))
         run(SKAction.playSoundFileNamed("pew-pew-lei.caf", waitForCompletion: false))
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.canFireCheese = true
+        }
     }
     
     func projectileDidCollideWithMonster(projectile: SKSpriteNode, monster: SKSpriteNode) {
-        print("Hit")
         projectile.removeFromParent()
         monster.removeFromParent()
+        
+        catsPurgedCounter += 1
+        purgedLabel.text = "Cats Purged: \(catsPurgedCounter)"
     }
     
     func monsterDidCollideWithPlayer(monster: SKSpriteNode, player: SKSpriteNode) {
-        print("Dead")
         monster.removeFromParent()
         let loseAction = SKAction.run() {
             let reveal = SKTransition.flipHorizontal(withDuration: 0.5)
